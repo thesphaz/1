@@ -1,54 +1,27 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Khrarr: Escape</title>
+    <title>Click the Square</title>
 
     <style>
         body {
-            margin: 0;
-            overflow: hidden;
-            background: #111;
-            font-family: Arial, sans-serif;
-            color: white;
+            text-align: center;
+            font-family: Arial;
         }
 
-        canvas {
-            display: block;
-            background: #182018;
+        #game {
+            width: 600px;
+            height: 400px;
+            border: 2px solid black;
+            margin: auto;
+            position: relative;
         }
 
-        #ui {
-            position: fixed;
-            top: 15px;
-            left: 15px;
-            font-size: 20px;
-            z-index: 10;
-            text-shadow: 2px 2px 3px black;
-        }
-
-        #gameOver {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.75);
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            z-index: 20;
-        }
-
-        #gameOver h1 {
-            font-size: 60px;
-            margin: 0;
-        }
-
-        #gameOver p {
-            font-size: 24px;
-        }
-
-        button {
-            padding: 12px 25px;
-            font-size: 20px;
+        #square {
+            width: 50px;
+            height: 50px;
+            background: red;
+            position: absolute;
             cursor: pointer;
         }
     </style>
@@ -56,242 +29,60 @@
 
 <body>
 
-<canvas id="game"></canvas>
+<h1>Click the Square!</h1>
 
-<div id="ui">
-    Score: <span id="score">0</span><br>
-    Health: <span id="health">100</span>
-</div>
+<p>Score: <span id="score">0</span></p>
+<p>Time: <span id="time">20</span></p>
 
-<div id="gameOver">
-    <h1>YOU DIED</h1>
-    <p>Score: <span id="finalScore">0</span></p>
-    <button onclick="restartGame()">Play Again</button>
+<div id="game">
+    <div id="square"></div>
 </div>
 
 <script>
 
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
+let score = 0;
+let time = 20;
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+let square = document.getElementById("square");
+let game = document.getElementById("game");
 
-window.addEventListener("resize", () => {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-});
+function moveSquare() {
 
-let keys = {};
+    let x = Math.random() * 550;
+    let y = Math.random() * 350;
 
-document.addEventListener("keydown", e => {
-    keys[e.key.toLowerCase()] = true;
-});
-
-document.addEventListener("keyup", e => {
-    keys[e.key.toLowerCase()] = false;
-});
-
-
-let player;
-let enemies;
-let orbs;
-let score;
-let health;
-let gameRunning;
-
-function restartGame() {
-
-    player = {
-        x: canvas.width / 2,
-        y: canvas.height / 2,
-        size: 25,
-        speed: 5
-    };
-
-    enemies = [];
-    orbs = [];
-
-    score = 0;
-    health = 100;
-    gameRunning = true;
-
-    document.getElementById("gameOver").style.display = "none";
-
-    spawnOrb();
-
-    for (let i = 0; i < 3; i++) {
-        spawnEnemy();
-    }
+    square.style.left = x + "px";
+    square.style.top = y + "px";
 }
 
+square.onclick = function() {
 
-function spawnEnemy() {
-
-    let side = Math.floor(Math.random() * 4);
-
-    let x;
-    let y;
-
-    if (side === 0) {
-        x = -30;
-        y = Math.random() * canvas.height;
-    }
-
-    if (side === 1) {
-        x = canvas.width + 30;
-        y = Math.random() * canvas.height;
-    }
-
-    if (side === 2) {
-        x = Math.random() * canvas.width;
-        y = -30;
-    }
-
-    if (side === 3) {
-        x = Math.random() * canvas.width;
-        y = canvas.height + 30;
-    }
-
-    enemies.push({
-        x: x,
-        y: y,
-        size: 25,
-        speed: 1.5 + Math.random() * 1.5
-    });
-}
-
-
-function spawnOrb() {
-
-    orbs.push({
-        x: 50 + Math.random() * (canvas.width - 100),
-        y: 50 + Math.random() * (canvas.height - 100),
-        size: 12
-    });
-}
-
-
-function distance(a, b) {
-
-    let dx = a.x - b.x;
-    let dy = a.y - b.y;
-
-    return Math.sqrt(dx * dx + dy * dy);
-}
-
-
-function update() {
-
-    if (!gameRunning) return;
-
-    // PLAYER MOVEMENT
-
-    if (keys["w"] || keys["arrowup"]) {
-        player.y -= player.speed;
-    }
-
-    if (keys["s"] || keys["arrowdown"]) {
-        player.y += player.speed;
-    }
-
-    if (keys["a"] || keys["arrowleft"]) {
-        player.x -= player.speed;
-    }
-
-    if (keys["d"] || keys["arrowright"]) {
-        player.x += player.speed;
-    }
-
-
-    // KEEP PLAYER INSIDE SCREEN
-
-    player.x = Math.max(player.size, Math.min(canvas.width - player.size, player.x));
-    player.y = Math.max(player.size, Math.min(canvas.height - player.size, player.y));
-
-
-    // ENEMIES FOLLOW PLAYER
-
-    enemies.forEach(enemy => {
-
-        let dx = player.x - enemy.x;
-        let dy = player.y - enemy.y;
-
-        let length = Math.sqrt(dx * dx + dy * dy);
-
-        enemy.x += (dx / length) * enemy.speed;
-        enemy.y += (dy / length) * enemy.speed;
-
-
-        // DAMAGE PLAYER
-
-        if (distance(player, enemy) < player.size + enemy.size) {
-
-            health -= 0.5;
-
-            enemy.x -= (dx / length) * 5;
-            enemy.y -= (dy / length) * 5;
-        }
-    });
-
-
-    // COLLECT ORBS
-
-    for (let i = orbs.length - 1; i >= 0; i--) {
-
-        if (distance(player, orbs[i]) < player.size + orbs[i].size) {
-
-            score += 10;
-
-            orbs.splice(i, 1);
-
-            spawnOrb();
-
-            // Every 50 points, add an enemy
-
-            if (score % 50 === 0) {
-                spawnEnemy();
-            }
-        }
-    }
-
-
-    // GAME OVER
-
-    if (health <= 0) {
-
-        health = 0;
-        gameRunning = false;
-
-        document.getElementById("finalScore").textContent = score;
-        document.getElementById("gameOver").style.display = "flex";
-    }
-
+    score++;
 
     document.getElementById("score").textContent = score;
-    document.getElementById("health").textContent = Math.floor(health);
-}
 
+    moveSquare();
+};
 
-function draw() {
+setInterval(function() {
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    time--;
 
+    document.getElementById("time").textContent = time;
 
-    // BACKGROUND GRID
+    if (time <= 0) {
 
-    ctx.strokeStyle = "#263326";
-    ctx.lineWidth = 1;
+        square.style.display = "none";
 
-    for (let x = 0; x < canvas.width; x += 50) {
-
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, canvas.height);
-        ctx.stroke();
+        alert("Game over! Your score was " + score);
     }
 
-    for (let y = 0; y < canvas.height; y += 50) {
+}, 1000);
 
-        ctx.begin
+moveSquare();
+
+</script>
+
+</body>
+</html>
 ```

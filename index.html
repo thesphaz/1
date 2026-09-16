@@ -1,19 +1,297 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Khrarr: Escape</title>
 
-    <title>WebServerTestLIVE</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #111;
+            font-family: Arial, sans-serif;
+            color: white;
+        }
+
+        canvas {
+            display: block;
+            background: #182018;
+        }
+
+        #ui {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            font-size: 20px;
+            z-index: 10;
+            text-shadow: 2px 2px 3px black;
+        }
+
+        #gameOver {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.75);
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 20;
+        }
+
+        #gameOver h1 {
+            font-size: 60px;
+            margin: 0;
+        }
+
+        #gameOver p {
+            font-size: 24px;
+        }
+
+        button {
+            padding: 12px 25px;
+            font-size: 20px;
+            cursor: pointer;
+        }
+    </style>
 </head>
 
 <body>
 
-    <h1>Welcome to My Website!</h1>
+<canvas id="game"></canvas>
 
-    <p>This is a test website to see if i can work something over internet.</p>
+<div id="ui">
+    Score: <span id="score">0</span><br>
+    Health: <span id="health">100</span>
+</div>
 
-    <button onclick="alert('Hello!')">Click Me</button>
+<div id="gameOver">
+    <h1>YOU DIED</h1>
+    <p>Score: <span id="finalScore">0</span></p>
+    <button onclick="restartGame()">Play Again</button>
+</div>
 
-</body>
-</html>
+<script>
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+window.addEventListener("resize", () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+});
+
+let keys = {};
+
+document.addEventListener("keydown", e => {
+    keys[e.key.toLowerCase()] = true;
+});
+
+document.addEventListener("keyup", e => {
+    keys[e.key.toLowerCase()] = false;
+});
+
+
+let player;
+let enemies;
+let orbs;
+let score;
+let health;
+let gameRunning;
+
+function restartGame() {
+
+    player = {
+        x: canvas.width / 2,
+        y: canvas.height / 2,
+        size: 25,
+        speed: 5
+    };
+
+    enemies = [];
+    orbs = [];
+
+    score = 0;
+    health = 100;
+    gameRunning = true;
+
+    document.getElementById("gameOver").style.display = "none";
+
+    spawnOrb();
+
+    for (let i = 0; i < 3; i++) {
+        spawnEnemy();
+    }
+}
+
+
+function spawnEnemy() {
+
+    let side = Math.floor(Math.random() * 4);
+
+    let x;
+    let y;
+
+    if (side === 0) {
+        x = -30;
+        y = Math.random() * canvas.height;
+    }
+
+    if (side === 1) {
+        x = canvas.width + 30;
+        y = Math.random() * canvas.height;
+    }
+
+    if (side === 2) {
+        x = Math.random() * canvas.width;
+        y = -30;
+    }
+
+    if (side === 3) {
+        x = Math.random() * canvas.width;
+        y = canvas.height + 30;
+    }
+
+    enemies.push({
+        x: x,
+        y: y,
+        size: 25,
+        speed: 1.5 + Math.random() * 1.5
+    });
+}
+
+
+function spawnOrb() {
+
+    orbs.push({
+        x: 50 + Math.random() * (canvas.width - 100),
+        y: 50 + Math.random() * (canvas.height - 100),
+        size: 12
+    });
+}
+
+
+function distance(a, b) {
+
+    let dx = a.x - b.x;
+    let dy = a.y - b.y;
+
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
+
+function update() {
+
+    if (!gameRunning) return;
+
+    // PLAYER MOVEMENT
+
+    if (keys["w"] || keys["arrowup"]) {
+        player.y -= player.speed;
+    }
+
+    if (keys["s"] || keys["arrowdown"]) {
+        player.y += player.speed;
+    }
+
+    if (keys["a"] || keys["arrowleft"]) {
+        player.x -= player.speed;
+    }
+
+    if (keys["d"] || keys["arrowright"]) {
+        player.x += player.speed;
+    }
+
+
+    // KEEP PLAYER INSIDE SCREEN
+
+    player.x = Math.max(player.size, Math.min(canvas.width - player.size, player.x));
+    player.y = Math.max(player.size, Math.min(canvas.height - player.size, player.y));
+
+
+    // ENEMIES FOLLOW PLAYER
+
+    enemies.forEach(enemy => {
+
+        let dx = player.x - enemy.x;
+        let dy = player.y - enemy.y;
+
+        let length = Math.sqrt(dx * dx + dy * dy);
+
+        enemy.x += (dx / length) * enemy.speed;
+        enemy.y += (dy / length) * enemy.speed;
+
+
+        // DAMAGE PLAYER
+
+        if (distance(player, enemy) < player.size + enemy.size) {
+
+            health -= 0.5;
+
+            enemy.x -= (dx / length) * 5;
+            enemy.y -= (dy / length) * 5;
+        }
+    });
+
+
+    // COLLECT ORBS
+
+    for (let i = orbs.length - 1; i >= 0; i--) {
+
+        if (distance(player, orbs[i]) < player.size + orbs[i].size) {
+
+            score += 10;
+
+            orbs.splice(i, 1);
+
+            spawnOrb();
+
+            // Every 50 points, add an enemy
+
+            if (score % 50 === 0) {
+                spawnEnemy();
+            }
+        }
+    }
+
+
+    // GAME OVER
+
+    if (health <= 0) {
+
+        health = 0;
+        gameRunning = false;
+
+        document.getElementById("finalScore").textContent = score;
+        document.getElementById("gameOver").style.display = "flex";
+    }
+
+
+    document.getElementById("score").textContent = score;
+    document.getElementById("health").textContent = Math.floor(health);
+}
+
+
+function draw() {
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+
+    // BACKGROUND GRID
+
+    ctx.strokeStyle = "#263326";
+    ctx.lineWidth = 1;
+
+    for (let x = 0; x < canvas.width; x += 50) {
+
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+    }
+
+    for (let y = 0; y < canvas.height; y += 50) {
+
+        ctx.begin
+```
